@@ -9,6 +9,8 @@ from my_app import db, app
 
 def get_ldap_connection():
     conn = ldap.initialize(app.config['LDAP_PROVIDER_URL'])
+    ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
+    conn.start_tls_s()
     return conn
 
 
