@@ -23,7 +23,7 @@ class User(db.Model):
     def try_login(username, password):
         conn = get_ldap_connection()
         conn.simple_bind_s(
-            'cn=%s,ou=Users,dc=insat,dc=projet,dc=com' % username,
+            'uid=%s,ou=people,dc=projet,dc=com' % username,
             password
         )
 
