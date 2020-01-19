@@ -83,7 +83,7 @@ def login():
                 'danger')
             return render_template('login.html', form=form)
 
-        # Log the user using SQLalchemy database
+        # Log the user using SQLAlchemy database
         user = User.query.filter_by(username=username).first()
         login_user(user)
         flash('You have successfully logged in.', 'success')
