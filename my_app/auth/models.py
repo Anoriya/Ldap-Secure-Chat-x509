@@ -1,5 +1,3 @@
-import hashlib
-
 import ldap
 from flask_login._compat import unicode
 from flask_wtf import Form
@@ -38,13 +36,13 @@ class User(db.Model):
                                ['sn'])
         if result:
             raise ValueError('User already exist')
-        # If user does not exist add it
+        # If user does not exist add it to ldap server
         else:
             attributes = {
                 "objectClass": [b"inetOrgPerson"],
                 "sn": [username.encode('utf-8')],
                 "cn": [username.encode('utf-8')],
-                "userPassword": [hashlib.sha256(password.encode('utf-8'))],
+                "userPassword": [password.encode('utf-8')],
             }
             ldif = modlist.addModlist(attributes)
             res = conn.add_s(
