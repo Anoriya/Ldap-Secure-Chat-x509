@@ -26,6 +26,43 @@ def home():
     return render_template('home.html')
 
 
+@auth.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        flash('You are already logged in.')
+        return redirect(url_for('auth.home'))
+
+    form = LoginForm(request.form)
+
+    if request.method == 'POST' and form.validate():
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        try:
+            result = User.try_register(username, password)
+        except ValueError:
+            flash(
+                'User already exist.',
+                'danger')
+            return render_template('register.html', form=form)
+
+        # Case success register to database
+        if result:
+            user = User(username, password)
+            db.session.add(user)
+            db.session.commit()
+            flash('Registered successfully', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Error, try again', 'danger')
+            return render_template('register.html', form=form)
+
+    if form.errors:
+        flash(form.errors, 'danger')
+
+    return render_template('register.html', form=form)
+
+
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -46,12 +83,8 @@ def login():
                 'danger')
             return render_template('login.html', form=form)
 
+        # Log the user using SQLalchemy database
         user = User.query.filter_by(username=username).first()
-
-        if not user:
-            user = User(username, password)
-            db.session.add(user)
-            db.session.commit()
         login_user(user)
         flash('You have successfully logged in.', 'success')
         return redirect(url_for('auth.home'))
