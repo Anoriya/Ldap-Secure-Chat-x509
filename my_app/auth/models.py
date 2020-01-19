@@ -11,11 +11,11 @@ CACert = '/etc/ssl/certs/cacert.pem'
 
 
 def get_ldap_connection():
-    # ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, CACert)
+    ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, CACert)
+    ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
     ldap.set_option(ldap.OPT_DEBUG_LEVEL, 255)
-    # ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
     conn = ldap.initialize(app.config['LDAP_PROVIDER_URL'])
-    # conn.start_tls_s()
+    conn.start_tls_s()
     return conn
 
 
@@ -25,6 +25,20 @@ class User(db.Model):
 
     def __init__(self, username, password):
         self.username = username
+
+    @staticmethod
+    def get_users(self):
+        conn = get_ldap_connection()
+        try:
+            conn.simple_bind_s('cn=admin,dc=projet,dc=com', 'Inchalah1.')
+            result = conn.search_s('ou=people,dc=projet,dc=com', ldap.SCOPE_SUBTREE,
+                                   '(&(objectclass=inetOrgPerson))',
+                                   ['*'])
+            conn.unbind_s()
+            return result
+        except ldap.LDAPError:
+            conn.unbind_s()
+            return 'authentication error'
 
     @staticmethod
     def try_register(username, password):
