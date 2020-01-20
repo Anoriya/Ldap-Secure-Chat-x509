@@ -1,4 +1,10 @@
 import ldap
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 from flask_login._compat import unicode
 from flask_wtf import Form
 from ldap import modlist
@@ -27,6 +33,48 @@ class User(db.Model):
         self.username = username
 
     @staticmethod
+    def generate_rsa_key(key_path):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+
+        with open(key_path, "wb") as f:
+            f.write(private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.BestAvailableEncryption(b"passphrase"),
+            ))
+            return private_key
+
+    @staticmethod
+    def generate_certificate():
+        private_key = User.generate_rsa_key("/etc/priv_key" + User.query.all().count() + ".pem")
+        csr = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
+            # Provide various details about who we are.
+            x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"California"),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"My Company"),
+            x509.NameAttribute(NameOID.COMMON_NAME, u"mysite.com"),
+        ])).add_extension(
+            x509.SubjectAlternativeName([
+                # Describe what sites we want this certificate for.
+                x509.DNSName(u"mysite.com"),
+                x509.DNSName(u"www.mysite.com"),
+                x509.DNSName(u"subdomain.mysite.com"),
+            ]),
+            critical=False,
+            # Sign the CSR with our private key.
+        ).sign(private_key, hashes.SHA256(), default_backend())
+        # Saving
+        with open("/etc/csr" + User.query.all().count() + ".pem", "wb") as f:
+            f.write(csr.public_bytes(serialization.Encoding.PEM))
+
+        return csr
+
+    @staticmethod
     def get_users(self):
         conn = get_ldap_connection()
         try:
@@ -52,11 +100,14 @@ class User(db.Model):
             raise ValueError('User already exist')
         # If user does not exist add it to ldap server
         else:
+            User.generate_certificate()  # TO DO : RACHED BOUCHOUCHA
+            cert = User.sign_certificate()  # TO DO : RACHED BOUCHOUCHA
             attributes = {
                 "objectClass": [b"inetOrgPerson"],
                 "sn": [username.encode('utf-8')],
                 "cn": [username.encode('utf-8')],
                 "userPassword": [password.encode('utf-8')],
+                "cert_path": [cert.encode('utf-8')]
             }
             ldif = modlist.addModlist(attributes)
             res = conn.add_s(
