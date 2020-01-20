@@ -85,6 +85,10 @@ def login():
 
         # Log the user using SQLAlchemy database
         user = User.query.filter_by(username=username).first()
+        if not user:
+            user = User(username, password)
+            db.session.add(user)
+            db.session.commit()
         login_user(user)
         flash('You have successfully logged in.', 'success')
         return redirect(url_for('auth.home'))
@@ -92,6 +96,8 @@ def login():
     if form.errors:
         flash(form.errors, 'danger')
 
+    users = User.query.all()
+    print("AAAAAAA", users)
     return render_template('login.html', form=form)
 
 
