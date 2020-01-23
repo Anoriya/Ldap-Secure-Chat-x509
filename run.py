@@ -1,3 +1,4 @@
-from my_app import app
+from my_app.chat.application import socketio, app
 
-app.run(debug=True)
+if __name__ == "__main__":
+    socketio.run(app, debug=True)
